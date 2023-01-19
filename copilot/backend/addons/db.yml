@@ -1,0 +1,74 @@
+# Set AWS template version
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed to.
+  Name:
+    Type: String
+    Description: The name of the service, job, or workflow being deployed.
+
+Resources:
+  DBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: !Ref "AWS::StackName"
+      SubnetIds: !Split [ ',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets' } ]
+
+
+  DBInstance:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      AllocatedStorage: "30"
+      DBInstanceClass: db.t4g.medium
+      DBName: postgres
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: 14
+      MasterUsername: master
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+
+  DatabaseSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId:
+        Fn::ImportValue: !Sub "${App}-${Env}-VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${App}-${Env}-EnvironmentSecurityGroup"
+      Tags:
+        - Key: copilot-environment
+          Value: !Ref Env
+        - Key: copilot-application
+          Value: !Ref App
+
+Outputs:
+  RdsSecurityGroup:
+    Description: "The security group to attach to the workload."
+    Value: !Ref DatabaseSecurityGroup
+  DatabaseHost:
+    Description: "Database Host"
+    Value: !GetAtt DBInstance.Endpoint.Address
+  DatabasePort:
+    Description: "Database Port"
+    Value: !GetAtt DBInstance.Endpoint.Port
+  DatabaseUsername:
+    Description: "Database Username"
+    Value: master
+  DatabasePassword:
+    Description: "Database Password"
+    Value: password
+  DatabaseName:
+    Description: "Database Name"
+    Value: postgres

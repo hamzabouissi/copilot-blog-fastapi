@@ -1,0 +1,34 @@
+version: "3.7"
+
+services:
+  db:
+    image: postgres:14.1-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=pengguin
+    ports:
+      - 5432
+    
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5051}:80"
+    restart: unless-stopped
+  
+  app:
+    image: copilot-blog-fastapi
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=user
+      - DATABASE_PASSWORD=password
+      - DATABASE_NAME=pengguin
