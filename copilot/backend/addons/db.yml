@@ -24,16 +24,37 @@ Resources:
     Properties:
       AllocatedStorage: "30"
       DBInstanceClass: db.t4g.medium
-      DBName: postgres
+      DBName: "postgres"
       DBSubnetGroupName: !Ref DBSubnetGroup
       Engine: postgres
       EngineVersion: 14
-      MasterUsername: master
-      MasterUserPassword: password
+      MasterUsername: !Sub "{{resolve:secretsmanager:${MyRDSInstanceSecret}::username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${MyRDSInstanceSecret}::password}}"
       StorageType: gp2
       MonitoringInterval: 0
       VPCSecurityGroups:
         - !Ref DatabaseSecurityGroup
+
+  MyRDSInstanceSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "This is my rds instance secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "postgresadmin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: copilot-environment
+          Value: !Ref Env
+        - Key: copilot-application
+          Value: !Ref App
+  DBInstanceSecretAtachement:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref MyRDSInstanceSecret
+      TargetId: !Ref DBInstance
+      TargetType: AWS::RDS::DBInstance
 
   DatabaseSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
@@ -57,18 +78,8 @@ Outputs:
   RdsSecurityGroup:
     Description: "The security group to attach to the workload."
     Value: !Ref DatabaseSecurityGroup
-  DatabaseHost:
-    Description: "Database Host"
-    Value: !GetAtt DBInstance.Endpoint.Address
-  DatabasePort:
-    Description: "Database Port"
-    Value: !GetAtt DBInstance.Endpoint.Port
-  DatabaseUsername:
-    Description: "Database Username"
-    Value: master
-  DatabasePassword:
-    Description: "Database Password"
-    Value: password
-  DatabaseName:
-    Description: "Database Name"
-    Value: postgres
+  RdsSecret:
+    Description: "The JSON secret that holds the database username and password. Fields are 'host', 'port', 'dbname', 'username', 'password', 'dbClusterIdentifier' and 'engine'"
+    Value: !Ref MyRDSInstanceSecret
+    Export:
+      Name: !Sub '${App}-${Env}-RDS-RdsSecret'

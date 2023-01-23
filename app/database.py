@@ -2,12 +2,18 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
+import json
 
-db_host = os.environ['DATABASE_HOST']
-db_port = os.environ['DATABASE_PORT']
-db_username = os.environ['DATABASE_USERNAME']
-db_password = os.environ['DATABASE_PASSWORD']
-db_name = os.environ['DATABASE_NAME']
+database_secret_env = os.environ['RDS_SECRET']
+print(database_secret_env)
+database_secret = json.loads(database_secret_env)
+
+db_host = database_secret['host']
+db_port = database_secret['port']
+db_username = database_secret['username']
+db_password = database_secret['password']
+db_name = database_secret['dbname']
+
 SQLALCHEMY_DATABASE_URL = f"postgresql://{db_username}:{db_password}@{db_host}:{db_port}/{db_name}"
 print(SQLALCHEMY_DATABASE_URL)
 
